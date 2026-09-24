@@ -6,9 +6,10 @@ interface NavbarProps {
   setActiveTab: (tab: 'map' | 'report' | 'authority' | 'impact' | 'standards') => void;
   activeRiver: string;
   onOpenAlerts?: () => void;
+  onOpenBatchUpload?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeRiver, onOpenAlerts }) => {
+export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeRiver, onOpenAlerts, onOpenBatchUpload }) => {
   return (
     <header style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 1000, padding: '12px 24px' }}>
       <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -136,8 +137,29 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeR
           </button>
         </nav>
 
-        {/* Selected Pilot River & Telegram Bot Launch Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {/* Action Buttons: Batch Upload & Bot Alerts */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onOpenBatchUpload && (
+            <button
+              onClick={onOpenBatchUpload}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 12px',
+                borderRadius: '8px',
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid #10b981',
+                color: '#34d399',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              🧪 Upload Lab CSV
+            </button>
+          )}
+
           {onOpenAlerts && (
             <button
               onClick={onOpenAlerts}
@@ -155,7 +177,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeR
                 cursor: 'pointer'
               }}
             >
-              💬 Bot Alerts (हिंदी/EN)
+              💬 Bot Alerts
             </button>
           )}
 

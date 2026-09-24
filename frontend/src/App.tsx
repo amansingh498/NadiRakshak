@@ -6,6 +6,7 @@ import { AuthorityDashboard } from './components/AuthorityDashboard';
 import { ImpactMetricsView } from './components/ImpactMetricsView';
 import { StandardsView } from './components/StandardsView';
 import { TelegramAlertModal } from './components/TelegramAlertModal';
+import { BatchUploadModal } from './components/BatchUploadModal';
 import { River, Incident, Hotspot } from './types';
 
 export const App: React.FC = () => {
@@ -15,6 +16,7 @@ export const App: React.FC = () => {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState<boolean>(false);
+  const [isBatchUploadOpen, setIsBatchUploadOpen] = useState<boolean>(false);
 
   const loadRiversAndIncidents = async () => {
     try {
@@ -52,12 +54,23 @@ export const App: React.FC = () => {
         setActiveTab={setActiveTab}
         activeRiver={currentRiver?.name || 'Yamuna (Delhi Stretch)'}
         onOpenAlerts={() => setIsAlertsOpen(true)}
+        onOpenBatchUpload={() => setIsBatchUploadOpen(true)}
       />
 
       <TelegramAlertModal
         isOpen={isAlertsOpen}
         onClose={() => setIsAlertsOpen(false)}
         activeRiver={currentRiver?.name || 'Yamuna (Delhi Stretch)'}
+      />
+
+      <BatchUploadModal
+        isOpen={isBatchUploadOpen}
+        onClose={() => setIsBatchUploadOpen(false)}
+        rivers={rivers}
+        onUploadSuccess={() => {
+          loadRiversAndIncidents();
+          setIsBatchUploadOpen(false);
+        }}
       />
 
       <main style={{ flex: 1 }}>

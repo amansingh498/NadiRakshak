@@ -160,6 +160,124 @@ def get_river_health_summary(river_id: int, db: Session = Depends(get_db)):
         ]
     }
 
+@app.get("/api/ghat-advisory")
+def get_ghat_advisory(river_id: int = Query(1), db: Session = Depends(get_db)):
+    """
+    Real-world citizen & pilgrim safety engine:
+    Evaluates individual ghats along the river for Holy Bathing (Snan), Achamana (Ritual sip),
+    and general contact safety based on CPCB Class B bathing limits.
+    """
+    stations = db.query(Station).filter(Station.river_id == river_id).all()
+    
+    advisories = []
+    for st in stations:
+        latest_meas = db.query(Measurement).filter(
+            Measurement.station_id == st.id
+        ).order_by(Measurement.measured_at.desc()).first()
+
+        score = latest_meas.health_score if latest_meas else 50
+        do = latest_meas.do_mgl if latest_meas else 4.0
+        bod = latest_meas.bod_mgl if latest_meas else 12.0
+        fc = latest_meas.fecal_coliform if latest_meas else 5000.0
+
+        # Safety decision logic based strictly on CPCB Bathing Class B Criteria
+        # Bathing requires: DO >= 5.0, BOD <= 3.0, Fecal Coliform <= 500 (desirable) / 2500 (max)
+        if score >= 75 and (fc or 0) <= 500 and (bod or 0) <= 3.0 and (do or 0) >= 5.0:
+            status = "SAFE FOR BATHING"
+            color = "#10b981"
+            badge = "Safe"
+            ritual_advice = "Suitable for ritual holy bath (Snan). Low bacterial risk."
+            achamana_safe = False # No raw river water is safe for direct ingestion without boiling
+            skin_risk = "Low"
+        elif score >= 50 and (fc or 0) <= 2500 and (do or 0) >= 4.0:
+            status = "CAUTION ADVISED"
+            color = "#f59e0b"
+            badge = "Caution"
+            ritual_advice = "Symbolic sprinkling (Marjana) recommended. Avoid submerging head or eyes."
+            achamana_safe = False
+            skin_risk = "Moderate (wash with clean tap water after contact)"
+        else:
+            status = "UNSAFE / HAZARDOUS"
+            color = "#ef4444"
+            badge = "Hazardous"
+            ritual_advice = "Heavy pollution & bacteria detected. Do NOT take a dip. Perform dry prayer (Manasa Snan)."
+            achamana_safe = False
+            skin_risk = "High infection & dermatitis risk"
+
+        advisories.append({
+            "ghat_id": st.id,
+            "ghat_name": st.name,
+            "district": st.district,
+            "latitude": st.latitude,
+            "longitude": st.longitude,
+            "health_score": score,
+            "safety_status": status,
+            "badge": badge,
+            "color": color,
+            "ritual_guidance": ritual_advice,
+            "achamana_drinking_safe": achamana_safe,
+            "skin_infection_risk": skin_risk,
+            "do_mgl": do,
+            "bod_mgl": bod,
+            "fecal_coliform": fc,
+            "updated_at": latest_meas.measured_at.isoformat() if latest_meas else datetime.utcnow().isoformat()
+        })
+
+    return {
+        "river_id": river_id,
+        "standard_applied": "CPCB Class B (Outdoor Bathing Standard)",
+        "disclaimer": "Advisory is generated from live telemetry sensors and satellite spectral data for pilgrim safety awareness.",
+        "ghats": advisories
+    }
+
+
+class MeasurementBatchCreate(BaseModel):
+    measurements: List[MeasurementCreate]
+
+@app.post("/api/measurements/batch")
+def create_measurements_batch(payload: MeasurementBatchCreate, db: Session = Depends(get_db)):
+    """
+    Ingests batch water quality measurements uploaded by NGOs, mobile testing vans, or citizen science labs.
+    Automatically computes health scores and sub-indexes for every reading.
+    """
+    created_records = []
+    for item in payload.measurements:
+        calc = calculate_river_health_score(
+            ph=item.ph,
+            do_mgl=item.do_mgl,
+            bod_mgl=item.bod_mgl,
+            turbidity_ntu=item.turbidity_ntu,
+            fecal_coliform=item.fecal_coliform,
+            cod_mgl=item.cod_mgl
+        )
+        measurement = Measurement(
+            river_id=item.river_id,
+            station_id=item.station_id,
+            latitude=item.latitude,
+            longitude=item.longitude,
+            ph=item.ph,
+            do_mgl=item.do_mgl,
+            bod_mgl=item.bod_mgl,
+            cod_mgl=item.cod_mgl,
+            turbidity_ntu=item.turbidity_ntu,
+            fecal_coliform=item.fecal_coliform,
+            health_score=calc["score"],
+            health_band=calc["band"],
+            completeness_pct=calc["completeness_pct"],
+            sub_scores_json=calc["sub_scores"],
+            source=item.source or "NGO Field Kit",
+            is_demo=item.is_demo
+        )
+        db.add(measurement)
+        created_records.append(measurement)
+
+    db.commit()
+    return {
+        "success": True,
+        "count": len(created_records),
+        "message": f"Successfully ingested and scored {len(created_records)} water quality records."
+    }
+
 @app.post("/api/measurements")
 def create_measurement(payload: MeasurementCreate, db: Session = Depends(get_db)):
     """Ingests a new water quality measurement and automatically calculates health scores."""

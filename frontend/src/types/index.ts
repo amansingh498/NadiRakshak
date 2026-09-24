@@ -128,3 +128,31 @@ export interface SatelliteGapData {
   segments: SatelliteSegment[];
 }
 
+export interface GhatAdvisoryItem {
+  ghat_id: number;
+  ghat_name: string;
+  district: string;
+  latitude: number;
+  longitude: number;
+  health_score: number;
+  safety_status: string;
+  badge: 'Safe' | 'Caution' | 'Hazardous';
+  color: string;
+  ritual_guidance: string;
+  achamana_drinking_safe: boolean;
+  skin_infection_risk: string;
+  do_mgl: number;
+  bod_mgl: number;
+  fecal_coliform: number;
+  updated_at: string;
+}
+
+export interface GhatAdvisoryResponse {
+  river_id: number;
+  standard_applied: string;
+  disclaimer: string;
+  ghats: GhatAdvisoryItem[];
+}
+
+
+
