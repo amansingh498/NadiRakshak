@@ -40,15 +40,18 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
+from app.services.seeder import seed_database_internal
+
 @app.on_event("startup")
 def on_startup():
     init_db()
     try:
-        from seed import seed_database
-        seed_database()
+        from app.db import SessionLocal
+        db = SessionLocal()
+        seed_database_internal(db)
+        db.close()
     except Exception as e:
         print(f"Startup seed notice: {e}")
-
 
 # --- Pydantic Schemas ---
 class RiverResponse(BaseModel):
@@ -91,10 +94,27 @@ def get_standards_config():
     """Returns official CPCB water quality standards and thresholds used for score calculation."""
     return STANDARDS
 
+@app.get("/api/seed")
+def manual_seed_trigger(db: Session = Depends(get_db)):
+    """Manual endpoint to force database seeding if running on fresh cloud host."""
+    seeded = seed_database_internal(db)
+    return {
+        "status": "success",
+        "seeded": seeded,
+        "rivers_count": db.query(River).count(),
+        "stations_count": db.query(Station).count(),
+        "incidents_count": db.query(Incident).count()
+    }
+
 @app.get("/api/rivers")
 def list_rivers(db: Session = Depends(get_db)):
-    """Lists monitored rivers and their basic properties."""
-    return db.query(River).all()
+    """Lists monitored rivers and their basic properties. Auto-seeds if empty."""
+    rivers = db.query(River).all()
+    if not rivers:
+        seed_database_internal(db)
+        rivers = db.query(River).all()
+    return rivers
+
 
 @app.get("/api/rivers/{river_id}/health")
 def get_river_health_summary(river_id: int, db: Session = Depends(get_db)):
