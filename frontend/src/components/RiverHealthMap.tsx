@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import L, { LatLngTuple } from 'leaflet';
-import { River, Station, Measurement, Incident, Hotspot } from '../types';
-import { ShieldAlert, ChevronRight } from 'lucide-react';
+import { River, Station, Measurement, Incident, Hotspot, SatelliteGapData } from '../types';
+import { ShieldAlert, ChevronRight, Orbit, Satellite } from 'lucide-react';
 
 interface MapViewProps {
   rivers: River[];
@@ -92,10 +92,14 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
     measurements: Measurement[];
   } | null>(null);
 
+  const [satelliteData, setSatelliteData] = useState<SatelliteGapData | null>(null);
+  const [showSatelliteLayer, setShowSatelliteLayer] = useState<boolean>(true);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!selectedRiverId) return;
+    
+    // 1. Fetch In-situ sensor health data
     fetch(`/api/rivers/${selectedRiverId}/health`)
       .then(res => res.json())
       .then(data => {
@@ -107,6 +111,13 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
       .catch(err => {
         console.error('Failed to load health summary', err);
       });
+
+    // 2. Fetch Copernicus Sentinel-2 Optical Gap-Filling Analysis
+    fetch(`/api/satellite/gap-filling?river_id=${selectedRiverId}`)
+      .then(res => res.json())
+      .then(data => setSatelliteData(data))
+      .catch(err => console.error('Failed to load satellite gap data', err));
+
   }, [selectedRiverId]);
 
   const currentRiver = rivers.find(r => r.id === selectedRiverId);
@@ -317,11 +328,90 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
           </div>
         )}
 
+        {/* CARD 3: Copernicus Sentinel-2 Satellite Gap-Filling Card */}
+        {satelliteData && (
+          <div className="card-panel" style={{ border: '1px solid rgba(16, 185, 129, 0.3)', background: 'linear-gradient(135deg, #0f172a 0%, #13271f 100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981' }}>
+                <Satellite size={18} />
+                <strong style={{ fontSize: '0.85rem' }}>Copernicus Sentinel-2 Gap-Filling</strong>
+              </div>
+              <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', fontWeight: 700 }}>
+                10m Optical
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.4, marginBottom: '10px' }}>
+              Fills coverage blind spots between physical CPCB stations using Normalized Difference Turbidity Index (NDTI).
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+              {satelliteData.segments.map(seg => (
+                <div
+                  key={`sat-seg-${seg.segment_index}`}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    background: '#0f172a',
+                    border: `1px solid ${seg.band_color}55`,
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1', fontWeight: 600 }}>
+                    <span>Reach #{seg.segment_index}</span>
+                    <span style={{ color: seg.band_color, fontWeight: 700 }}>{seg.estimated_turbidity_ntu} NTU</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.7rem', marginTop: '2px' }}>
+                    <span>{seg.clarity_level}</span>
+                    <span>NDTI: {seg.ndti_index}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* RIGHT COLUMN: Interactive Map Canvas Card */}
       <div className="card-panel" style={{ padding: '8px', position: 'relative', overflow: 'hidden' }}>
         
+        {/* Floating Satellite Layer Toggle Control */}
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 500,
+          background: '#111827',
+          border: '1px solid #374151',
+          padding: '8px 12px',
+          borderRadius: '10px',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: showSatelliteLayer ? '#34d399' : '#94a3b8', fontSize: '0.8rem', fontWeight: 700 }}>
+            <Orbit size={16} />
+            <span>Sentinel-2 Turbidity Overlay</span>
+          </div>
+          <button
+            onClick={() => setShowSatelliteLayer(!showSatelliteLayer)}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              background: showSatelliteLayer ? '#10b981' : '#334155',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            {showSatelliteLayer ? 'ENABLED' : 'DISABLED'}
+          </button>
+        </div>
+
         {/* Floating Map Legend Card */}
         <div style={{
           position: 'absolute',
@@ -376,7 +466,7 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
             maxZoom={18}
           />
 
-          {/* River Line Dual Stroke */}
+          {/* Base River Centerline Stroke */}
           {riverCoords.length > 1 && (
             <>
               <Polyline
@@ -384,7 +474,7 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
                 pathOptions={{
                   color: '#0284c7',
                   weight: 12,
-                  opacity: 0.6,
+                  opacity: 0.5,
                   lineCap: 'round',
                   lineJoin: 'round'
                 }}
@@ -393,14 +483,47 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
                 positions={riverCoords}
                 pathOptions={{
                   color: '#38bdf8',
-                  weight: 6,
-                  opacity: 0.95,
+                  weight: 5,
+                  opacity: 0.9,
                   lineCap: 'round',
                   lineJoin: 'round'
                 }}
               />
             </>
           )}
+
+          {/* Sentinel-2 Gap Filling Colored Optical Segments */}
+          {showSatelliteLayer && satelliteData && satelliteData.segments.map(seg => (
+            <Polyline
+              key={`sat-line-${seg.segment_index}`}
+              positions={seg.coordinates}
+              pathOptions={{
+                color: seg.band_color,
+                weight: 10,
+                opacity: 0.85,
+                dashArray: '8, 8'
+              }}
+            >
+              <Popup>
+                <div style={{ minWidth: '200px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: seg.band_color, fontWeight: 700 }}>
+                    <Satellite size={16} /> Sentinel-2 Gap Estimate
+                  </div>
+                  <strong style={{ fontSize: '0.9rem', color: '#ffffff', display: 'block', marginTop: '4px' }}>
+                    Reach #{seg.segment_index} ({seg.unmonitored_gap_km} km unmonitored reach)
+                  </strong>
+                  <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                    <div>Turbidity: <strong style={{ color: seg.band_color }}>{seg.estimated_turbidity_ntu} NTU</strong></div>
+                    <div>NDTI Index: <strong>{seg.ndti_index}</strong> (Level: {seg.clarity_level})</div>
+                    <div>Tile: <strong>{seg.sentinel2_tile}</strong> (Cloud: {seg.cloud_cover_pct}%)</div>
+                  </div>
+                  <div style={{ marginTop: '6px', fontSize: '0.7rem', color: '#64748b' }}>
+                    ESA Copernicus Open Access Hub • 10m Optical
+                  </div>
+                </div>
+              </Popup>
+            </Polyline>
+          ))}
 
           {/* Hotspots */}
           {hotspots.map((h, idx) => (

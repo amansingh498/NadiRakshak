@@ -98,8 +98,33 @@ export interface ImpactSummary {
   reports_active: number;
   median_action_time_hours: number;
   hotspots_detected: number;
-  segments_improved: number;
   estimated_untreated_discharge_stopped_kld: number;
   estimated_downstream_pop_benefitted: number;
   disclaimer: string;
 }
+
+export interface SatelliteSegment {
+  segment_index: number;
+  coordinates: [number, number][];
+  center: [number, number];
+  sentinel2_tile: string;
+  acquisition_date: string;
+  cloud_cover_pct: number;
+  ndti_index: number;
+  ndwi_index: number;
+  estimated_turbidity_ntu: number;
+  clarity_level: string;
+  band_color: string;
+  unmonitored_gap_km: number;
+}
+
+export interface SatelliteGapData {
+  river_id: number;
+  river_name: string;
+  source: string;
+  methodology: string;
+  resolution: string;
+  is_gap_filling: boolean;
+  segments: SatelliteSegment[];
+}
+

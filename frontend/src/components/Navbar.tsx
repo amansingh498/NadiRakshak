@@ -5,9 +5,10 @@ interface NavbarProps {
   activeTab: 'map' | 'report' | 'authority' | 'impact' | 'standards';
   setActiveTab: (tab: 'map' | 'report' | 'authority' | 'impact' | 'standards') => void;
   activeRiver: string;
+  onOpenAlerts?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeRiver }) => {
+export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeRiver, onOpenAlerts }) => {
   return (
     <header style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 1000, padding: '12px 24px' }}>
       <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -135,8 +136,29 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeR
           </button>
         </nav>
 
-        {/* Selected Pilot River Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Selected Pilot River & Telegram Bot Launch Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {onOpenAlerts && (
+            <button
+              onClick={onOpenAlerts}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 12px',
+                borderRadius: '8px',
+                background: 'rgba(2, 132, 199, 0.15)',
+                border: '1px solid #0284c7',
+                color: '#38bdf8',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              💬 Bot Alerts (हिंदी/EN)
+            </button>
+          )}
+
           <div style={{ textAlign: 'right' }}>
             <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pilot Basin</span>
             <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc' }}>{activeRiver}</p>

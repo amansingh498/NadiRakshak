@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Incident, IncidentEvent } from '../types';
-import { CheckCircle2, AlertOctagon, ArrowRight } from 'lucide-react';
+import { CheckCircle2, AlertOctagon, ArrowRight, FileDown, Printer } from 'lucide-react';
 
 interface AuthorityDashboardProps {
   incidents: Incident[];
@@ -50,6 +50,33 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
       fetchDetail(incidents[0].id);
     }
   }, [selectedIncidentId, incidents]);
+
+  const exportAllIncidentsCSV = () => {
+    const headers = ["Tracking Number", "Location", "Latitude", "Longitude", "Pollution Type", "Severity", "Status", "Evidence Score", "Reported At"];
+    const rows = incidents.map(i => [
+      `"${i.tracking_number}"`,
+      `"${i.location_name}"`,
+      i.latitude,
+      i.longitude,
+      `"${i.pollution_type}"`,
+      `"${i.severity}"`,
+      `"${i.status}"`,
+      i.evidence_score,
+      `"${i.reported_at}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `NadiRakshak_Incidents_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const printInspectionDossier = () => {
+    window.print();
+  };
 
   const handleTransition = async (targetStatus: string) => {
     if (!selectedIncidentId) return;
@@ -140,7 +167,28 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff' }}>Incident Queue</h3>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{filteredIncidents.length} Records</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={exportAllIncidentsCSV}
+                title="Export Incidents CSV"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  background: '#1e293b',
+                  border: '1px solid #334155',
+                  color: '#38bdf8',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <FileDown size={14} /> Export CSV
+              </button>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{filteredIncidents.length} Records</span>
+            </div>
           </div>
 
           {/* Filter Bar */}
@@ -242,14 +290,34 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                 </p>
               </div>
 
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Assigned Unit</span>
-                <strong style={{ fontSize: '0.9rem', color: '#ffffff' }}>
-                  {incidentDetail.incident.assigned_to || 'Unassigned / Automated Triage'}
-                </strong>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block' }}>
-                  {incidentDetail.incident.assigned_org || 'DPCC Triage Cell'}
-                </span>
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                <button
+                  onClick={printInspectionDossier}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: '#1e293b',
+                    border: '1px solid #38bdf8',
+                    color: '#38bdf8',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Printer size={15} /> Print Inspection Dossier
+                </button>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Assigned Unit</span>
+                  <strong style={{ fontSize: '0.9rem', color: '#ffffff' }}>
+                    {incidentDetail.incident.assigned_to || 'Unassigned / Automated Triage'}
+                  </strong>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block' }}>
+                    {incidentDetail.incident.assigned_org || 'DPCC Triage Cell'}
+                  </span>
+                </div>
               </div>
             </div>
 

@@ -5,6 +5,7 @@ import { CitizenReportForm } from './components/CitizenReportForm';
 import { AuthorityDashboard } from './components/AuthorityDashboard';
 import { ImpactMetricsView } from './components/ImpactMetricsView';
 import { StandardsView } from './components/StandardsView';
+import { TelegramAlertModal } from './components/TelegramAlertModal';
 import { River, Incident, Hotspot } from './types';
 
 export const App: React.FC = () => {
@@ -13,6 +14,7 @@ export const App: React.FC = () => {
   const [selectedRiverId, setSelectedRiverId] = useState<number>(1);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
+  const [isAlertsOpen, setIsAlertsOpen] = useState<boolean>(false);
 
   const loadRiversAndIncidents = async () => {
     try {
@@ -48,6 +50,13 @@ export const App: React.FC = () => {
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        activeRiver={currentRiver?.name || 'Yamuna (Delhi Stretch)'}
+        onOpenAlerts={() => setIsAlertsOpen(true)}
+      />
+
+      <TelegramAlertModal
+        isOpen={isAlertsOpen}
+        onClose={() => setIsAlertsOpen(false)}
         activeRiver={currentRiver?.name || 'Yamuna (Delhi Stretch)'}
       />
 
