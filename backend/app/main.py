@@ -53,6 +53,22 @@ def on_startup():
     except Exception as e:
         print(f"Startup seed notice: {e}")
 
+@app.get("/")
+def backend_root_status(db: Session = Depends(get_db)):
+    """Backend root endpoint confirming server wakeup and database status."""
+    rivers_count = db.query(River).count()
+    if rivers_count == 0:
+        seed_database_internal(db)
+        rivers_count = db.query(River).count()
+    return {
+        "status": "online",
+        "message": "🟢 NadiRakshak Backend Server is Awake & Active!",
+        "database_status": "initialized",
+        "monitored_rivers": rivers_count,
+        "instructions": "You can now return to https://nadi-rakshak-ruby.vercel.app and click 'Refresh Data'."
+    }
+
+
 # --- Pydantic Schemas ---
 class RiverResponse(BaseModel):
     id: int
