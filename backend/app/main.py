@@ -43,6 +43,12 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 @app.on_event("startup")
 def on_startup():
     init_db()
+    try:
+        from seed import seed_database
+        seed_database()
+    except Exception as e:
+        print(f"Startup seed notice: {e}")
+
 
 # --- Pydantic Schemas ---
 class RiverResponse(BaseModel):
