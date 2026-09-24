@@ -154,5 +154,72 @@ export interface GhatAdvisoryResponse {
   ghats: GhatAdvisoryItem[];
 }
 
+export interface DrainSTP {
+  id: number;
+  river_id: number;
+  name: string;
+  type: 'DRAIN' | 'STP';
+  latitude: number;
+  longitude: number;
+  discharge_mld?: number;
+  capacity_mld?: number;
+  current_flow_mld?: number;
+  pollutant_load?: string;
+  technology?: string;
+  bod_mgl?: number;
+  effluent_bod_mgl?: number;
+  treatment_status?: string;
+  compliance_status?: string;
+  connected_stp?: string;
+  risk_level: 'CRITICAL' | 'HIGH' | 'OPTIMAL' | 'MODERATE';
+  icon_color: string;
+  details: string;
+}
+
+export interface IncidentTrackEvent {
+  id: number;
+  from_status: string | null;
+  to_status: string;
+  actor_name: string;
+  actor_role: string;
+  note: string;
+  created_at: string;
+}
+
+export interface IncidentTrackResponse {
+  found: boolean;
+  incident: {
+    id: number;
+    tracking_number: string;
+    river_id: number;
+    location_name: string;
+    latitude: number;
+    longitude: number;
+    pollution_type: string;
+    description: string;
+    image_url: string | null;
+    severity: string;
+    status: string;
+    assigned_to: string;
+    assigned_org: string;
+    reported_at: string;
+    updated_at: string;
+    sla: {
+      breached: boolean;
+      hours_in_status: number;
+      sla_limit_hours: number;
+      remaining_hours: number;
+    };
+  };
+  timeline: IncidentTrackEvent[];
+  remediation_snapshot: {
+    baseline_bod: number | null;
+    current_bod: number | null;
+    bod_reduction_pct: number | null;
+    discharge_prevented_kld: number | null;
+  } | null;
+}
+
+
 
 

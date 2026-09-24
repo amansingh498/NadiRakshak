@@ -684,6 +684,198 @@ def get_satellite_gap_filling(river_id: int = Query(1), db: Session = Depends(ge
         "segments": segments
     }
 
+@app.get("/api/incidents/track/{tracking_number}")
+def track_incident_by_number(tracking_number: str, db: Session = Depends(get_db)):
+    """
+    Public citizen incident tracking lookup endpoint.
+    Allows any citizen to check the real-time status, timeline, and remediation of their complaint.
+    """
+    clean_num = tracking_number.strip().upper()
+    incident = db.query(Incident).filter(
+        (Incident.tracking_number == clean_num) | 
+        (Incident.tracking_number == clean_num.replace("#", ""))
+    ).first()
+    
+    if not incident:
+        raise HTTPException(status_code=404, detail=f"No report found with tracking number '{tracking_number}'")
+
+    events = db.query(IncidentEvent).filter(
+        IncidentEvent.incident_id == incident.id
+    ).order_by(IncidentEvent.created_at.asc()).all()
+
+    snapshot = db.query(ImpactSnapshot).filter(
+        ImpactSnapshot.incident_id == incident.id
+    ).first()
+
+    sla = check_sla_breach(incident.status, incident.updated_at or incident.reported_at)
+
+    return {
+        "found": True,
+        "incident": {
+            "id": incident.id,
+            "tracking_number": incident.tracking_number,
+            "river_id": incident.river_id,
+            "location_name": incident.location_name,
+            "latitude": incident.latitude,
+            "longitude": incident.longitude,
+            "pollution_type": incident.pollution_type,
+            "description": incident.description,
+            "image_url": incident.image_url,
+            "severity": incident.severity,
+            "status": incident.status,
+            "assigned_to": incident.assigned_to or "Unassigned (In Triage)",
+            "assigned_org": incident.assigned_org or "State Pollution Control Board",
+            "reported_at": incident.reported_at.isoformat(),
+            "updated_at": incident.updated_at.isoformat() if incident.updated_at else incident.reported_at.isoformat(),
+            "sla": sla
+        },
+        "timeline": [
+            {
+                "id": e.id,
+                "from_status": e.from_status,
+                "to_status": e.to_status,
+                "actor_name": e.actor_name,
+                "actor_role": e.actor_role,
+                "note": e.note,
+                "created_at": e.created_at.isoformat()
+            } for e in events
+        ],
+        "remediation_snapshot": {
+            "baseline_bod": snapshot.baseline_bod if snapshot else None,
+            "current_bod": snapshot.current_bod if snapshot else None,
+            "bod_reduction_pct": snapshot.bod_reduction_pct if snapshot else None,
+            "discharge_prevented_kld": snapshot.discharge_prevented_kld if snapshot else None
+        } if snapshot else None
+    }
+
+@app.get("/api/drains")
+def list_drains_and_stps(river_id: Optional[int] = Query(None)):
+    """
+    Returns mapped major inflow drains, industrial outfalls, and Sewage Treatment Plants (STPs)
+    with capacity, current discharge in MLD, and treatment status.
+    """
+    # Mapped drains & STPs for the Yamuna and Ganga river stretches
+    all_drains = [
+        # Yamuna Stretch Drains & STPs (Delhi-NCR)
+        {
+            "id": 1,
+            "river_id": 1,
+            "name": "Najafgarh Drain Outfall",
+            "type": "DRAIN",
+            "latitude": 28.7112,
+            "longitude": 77.2185,
+            "discharge_mld": 2050.0,
+            "pollutant_load": "Heavy Industrial & Domestic Sewage",
+            "bod_mgl": 68.0,
+            "treatment_status": "Partially Intercepted",
+            "connected_stp": "Coronation Pillar STP (318 MLD)",
+            "risk_level": "CRITICAL",
+            "icon_color": "#ef4444",
+            "details": "Accounts for ~60% of Delhi Yamuna pollution load entering near Wazirabad downstream."
+        },
+        {
+            "id": 2,
+            "river_id": 1,
+            "name": "Shahdara Outfall Drain",
+            "type": "DRAIN",
+            "latitude": 28.6254,
+            "longitude": 77.2891,
+            "discharge_mld": 480.0,
+            "pollutant_load": "Untreated Mixed Effluent",
+            "bod_mgl": 82.0,
+            "treatment_status": "Untreated Overflow",
+            "connected_stp": "Kondli STP (204 MLD)",
+            "risk_level": "CRITICAL",
+            "icon_color": "#ef4444",
+            "details": "Major trans-Yamuna drain carrying industrial effluent from Anand Vihar & Patparganj."
+        },
+        {
+            "id": 3,
+            "river_id": 1,
+            "name": "Barapullah Drain Outfall",
+            "type": "DRAIN",
+            "latitude": 28.5836,
+            "longitude": 77.2624,
+            "discharge_mld": 320.0,
+            "pollutant_load": "Domestic Sewage & Silt",
+            "bod_mgl": 54.0,
+            "treatment_status": "Trapped by Interceptor",
+            "connected_stp": "Okhla STP (564 MLD)",
+            "risk_level": "HIGH",
+            "icon_color": "#f97316",
+            "details": "Drains South Delhi colonies, now routed towards the upgraded Okhla mega STP."
+        },
+        {
+            "id": 4,
+            "river_id": 1,
+            "name": "Okhla Modern STP Facility",
+            "type": "STP",
+            "latitude": 28.5412,
+            "longitude": 77.2915,
+            "capacity_mld": 564.0,
+            "current_flow_mld": 510.0,
+            "technology": "Biological Nutrient Removal (BNR) + UV Disinfection",
+            "effluent_bod_mgl": 8.5,
+            "compliance_status": "COMPLIANT (BOD < 10 mg/L)",
+            "risk_level": "OPTIMAL",
+            "icon_color": "#10b981",
+            "details": "One of Asia's largest wastewater treatment plants treating South Delhi sewage before discharge."
+        },
+        {
+            "id": 5,
+            "river_id": 1,
+            "name": "Coronation Pillar STP Phase III",
+            "type": "STP",
+            "latitude": 28.7230,
+            "longitude": 77.2020,
+            "capacity_mld": 318.0,
+            "current_flow_mld": 295.0,
+            "technology": "IFAS + Membrane Filtration",
+            "effluent_bod_mgl": 7.2,
+            "compliance_status": "COMPLIANT",
+            "risk_level": "OPTIMAL",
+            "icon_color": "#10b981",
+            "details": "Treats Najafgarh supplementary catchments with real-time SCADA telemetry."
+        },
+        # Ganga Stretch (Varanasi / Haridwar)
+        {
+            "id": 6,
+            "river_id": 2,
+            "name": "Assi River / Nala Outfall",
+            "type": "DRAIN",
+            "latitude": 25.2810,
+            "longitude": 83.0065,
+            "discharge_mld": 110.0,
+            "pollutant_load": "Urban Runoff & Domestic Sewage",
+            "bod_mgl": 42.0,
+            "treatment_status": "Diverted to Dinapur STP",
+            "connected_stp": "Dinapur STP (140 MLD)",
+            "risk_level": "HIGH",
+            "icon_color": "#f97316",
+            "details": "Historical drain outfall discharging near Assi Ghat, largely intercepted under Namami Gange."
+        },
+        {
+            "id": 7,
+            "river_id": 2,
+            "name": "Dinapur Modern STP",
+            "type": "STP",
+            "latitude": 25.3450,
+            "longitude": 83.0420,
+            "capacity_mld": 140.0,
+            "current_flow_mld": 132.0,
+            "technology": "Activated Sludge Process (ASP) + Chlorination",
+            "effluent_bod_mgl": 9.0,
+            "compliance_status": "COMPLIANT",
+            "risk_level": "OPTIMAL",
+            "icon_color": "#10b981",
+            "details": "Major sewage treatment facility safeguarding downstream Varanasi bathing ghats."
+        }
+    ]
+
+    if river_id:
+        return [d for d in all_drains if d["river_id"] == river_id]
+    return all_drains
+
 @app.get("/api/timeline")
 def get_timeline(river_id: int, db: Session = Depends(get_db)):
     """Historical monthly river health score trends and milestones."""
@@ -701,4 +893,5 @@ def get_timeline(river_id: int, db: Session = Depends(get_db)):
             {"date": "Feb 2026", "title": "Industrial Effluent Interceptor Commissioned", "impact": "+12 score"}
         ]
     }
+
 

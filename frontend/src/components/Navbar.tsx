@@ -7,9 +7,18 @@ interface NavbarProps {
   activeRiver: string;
   onOpenAlerts?: () => void;
   onOpenBatchUpload?: () => void;
+  onOpenTrack?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeRiver, onOpenAlerts, onOpenBatchUpload }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  activeTab,
+  setActiveTab,
+  activeRiver,
+  onOpenAlerts,
+  onOpenBatchUpload,
+  onOpenTrack
+}) => {
+
   return (
     <header style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 1000, padding: '12px 24px' }}>
       <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -137,8 +146,29 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeR
           </button>
         </nav>
 
-        {/* Action Buttons: Batch Upload & Bot Alerts */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Action Buttons: Batch Upload & Bot Alerts & Track Complaint */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onOpenTrack && (
+            <button
+              onClick={onOpenTrack}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 12px',
+                borderRadius: '8px',
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid #38bdf8',
+                color: '#38bdf8',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              🔍 Track Incident
+            </button>
+          )}
+
           {onOpenBatchUpload && (
             <button
               onClick={onOpenBatchUpload}
@@ -180,6 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeR
               💬 Bot Alerts
             </button>
           )}
+
 
           <div style={{ textAlign: 'right' }}>
             <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pilot Basin</span>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import L, { LatLngTuple } from 'leaflet';
-import { River, Station, Measurement, Incident, Hotspot, SatelliteGapData, GhatAdvisoryItem } from '../types';
-import { ShieldAlert, ChevronRight, Orbit, Satellite, Info, HelpCircle } from 'lucide-react';
+import { River, Station, Measurement, Incident, Hotspot, SatelliteGapData, GhatAdvisoryItem, DrainSTP } from '../types';
+import { ShieldAlert, ChevronRight, Orbit, Satellite, Info, HelpCircle, Waves } from 'lucide-react';
 import { GhatSafetyAdvisory } from './GhatSafetyAdvisory';
 
 interface MapViewProps {
@@ -38,6 +38,32 @@ const createStationIcon = (score: number, bandColor: string) => {
     iconAnchor: [18, 18]
   });
 };
+
+const createDrainStpIcon = (type: 'DRAIN' | 'STP', color: string) => {
+  const symbol = type === 'DRAIN' ? '🌊' : '🏭';
+  return L.divIcon({
+    className: 'custom-drain-icon',
+    html: `
+      <div style="
+        width: 32px;
+        height: 32px;
+        background: #0f172a;
+        border: 2px solid ${color};
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      ">
+        ${symbol}
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+};
+
 
 const createIncidentIcon = (severity: string) => {
   const color = severity === 'CRITICAL' ? '#ef4444' : severity === 'HIGH' ? '#f97316' : '#f59e0b';
@@ -110,6 +136,8 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
 
   const [satelliteData, setSatelliteData] = useState<SatelliteGapData | null>(null);
   const [showSatelliteLayer, setShowSatelliteLayer] = useState<boolean>(true);
+  const [drainsData, setDrainsData] = useState<DrainSTP[]>([]);
+  const [showDrainsLayer, setShowDrainsLayer] = useState<boolean>(true);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
   const [focusedTarget, setFocusedTarget] = useState<{ lat: number; lng: number; zoom?: number; bounds?: LatLngTuple[] } | null>(null);
 
@@ -136,7 +164,14 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
       .then(data => setSatelliteData(data))
       .catch(err => console.error('Failed to load satellite gap data', err));
 
+    // 3. Fetch Drains and Sewage Treatment Plants (STPs)
+    fetch(`/api/drains?river_id=${selectedRiverId}`)
+      .then(res => res.json())
+      .then(data => setDrainsData(data))
+      .catch(err => console.error('Failed to load drains & STPs', err));
+
   }, [selectedRiverId]);
+
 
   const currentRiver = rivers.find(r => r.id === selectedRiverId);
   
@@ -447,40 +482,79 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
         {/* RIGHT COLUMN: Interactive Map Canvas Card */}
         <div className="card-panel" style={{ padding: '8px', position: 'relative', overflow: 'hidden', minHeight: '600px' }}>
           
-          {/* Floating Satellite Layer Toggle Control */}
+          {/* Floating Layers Controls */}
           <div style={{
             position: 'absolute',
             top: '20px',
             left: '20px',
             zIndex: 500,
-            background: '#111827',
-            border: '1px solid #374151',
-            padding: '8px 12px',
-            borderRadius: '10px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
             display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
+            gap: '8px',
+            flexWrap: 'wrap'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: showSatelliteLayer ? '#34d399' : '#94a3b8', fontSize: '0.8rem', fontWeight: 700 }}>
-              <Orbit size={16} />
-              <span>Sentinel-2 Turbidity Overlay</span>
+            <div style={{
+              background: '#111827',
+              border: '1px solid #374151',
+              padding: '6px 10px',
+              borderRadius: '10px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: showSatelliteLayer ? '#34d399' : '#94a3b8', fontSize: '0.78rem', fontWeight: 700 }}>
+                <Orbit size={15} />
+                <span>Sentinel-2</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSatelliteLayer(!showSatelliteLayer)}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  background: showSatelliteLayer ? '#10b981' : '#334155',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {showSatelliteLayer ? 'ON' : 'OFF'}
+              </button>
             </div>
-            <button
-              onClick={() => setShowSatelliteLayer(!showSatelliteLayer)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: showSatelliteLayer ? '#10b981' : '#334155',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              {showSatelliteLayer ? 'ENABLED' : 'DISABLED'}
-            </button>
+
+            <div style={{
+              background: '#111827',
+              border: '1px solid #374151',
+              padding: '6px 10px',
+              borderRadius: '10px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: showDrainsLayer ? '#f97316' : '#94a3b8', fontSize: '0.78rem', fontWeight: 700 }}>
+                <Waves size={15} />
+                <span>Drains & STPs</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDrainsLayer(!showDrainsLayer)}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  background: showDrainsLayer ? '#f97316' : '#334155',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {showDrainsLayer ? 'ON' : 'OFF'}
+              </button>
+            </div>
           </div>
 
           {/* Floating Map Legend Card */}
@@ -686,7 +760,79 @@ export const RiverHealthMap: React.FC<MapViewProps> = ({
               </Marker>
             ))}
 
+            {/* Drains & STPs Markers */}
+            {showDrainsLayer && drainsData.map(d => (
+              <Marker
+                key={`drain-stp-${d.id}`}
+                position={[d.latitude, d.longitude]}
+                icon={createDrainStpIcon(d.type, d.icon_color)}
+              >
+                <Popup>
+                  <div style={{ minWidth: '240px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{
+                        fontWeight: 800,
+                        color: d.icon_color,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        {d.type === 'DRAIN' ? '🌊 Major Outfall Drain' : '🏭 Sewage Treatment Plant'}
+                      </span>
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: `${d.icon_color}25`,
+                        color: d.icon_color,
+                        fontWeight: 700
+                      }}>
+                        {d.risk_level}
+                      </span>
+                    </div>
+
+                    <h4 style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.95rem', margin: '6px 0 2px 0' }}>
+                      {d.name}
+                    </h4>
+                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0, lineHeight: 1.3 }}>
+                      {d.details}
+                    </p>
+
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px',
+                      background: 'rgba(0,0,0,0.3)',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      color: '#cbd5e1',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}>
+                      {d.type === 'DRAIN' ? (
+                        <>
+                          <div>Discharge Volume: <strong style={{ color: '#ef4444' }}>{d.discharge_mld} MLD</strong></div>
+                          <div>Influent BOD: <strong>{d.bod_mgl} mg/L</strong></div>
+                          <div>Status: <strong style={{ color: '#f59e0b' }}>{d.treatment_status}</strong></div>
+                          {d.connected_stp && <div>Routing: <span style={{ color: '#38bdf8' }}>{d.connected_stp}</span></div>}
+                        </>
+                      ) : (
+                        <>
+                          <div>Capacity: <strong style={{ color: '#10b981' }}>{d.capacity_mld} MLD</strong> (Current: {d.current_flow_mld} MLD)</div>
+                          <div>Technology: <strong>{d.technology}</strong></div>
+                          <div>Treated Effluent BOD: <strong style={{ color: '#10b981' }}>{d.effluent_bod_mgl} mg/L</strong></div>
+                          <div>Compliance: <strong style={{ color: '#10b981' }}>{d.compliance_status}</strong></div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+
           </MapContainer>
+
         </div>
 
       </div>

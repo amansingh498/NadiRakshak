@@ -5,20 +5,47 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: nadirakshak-backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./nadirakshak.db
+      - DATABASE_URL=postgresql://nadiuser:nadipassword@postgres:5432/nadirakshak
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
-      - ./backend:/app
-      - ./config:/config
       - ./backend/uploads:/app/uploads
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: nadirakshak-frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: nadirakshak-postgres
+    environment:
+      - POSTGRES_USER=nadiuser
+      - POSTGRES_PASSWORD=nadipassword
+      - POSTGRES_DB=nadirakshak
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nadiuser -d nadirakshak"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:

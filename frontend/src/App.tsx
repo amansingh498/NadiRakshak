@@ -7,6 +7,7 @@ import { ImpactMetricsView } from './components/ImpactMetricsView';
 import { StandardsView } from './components/StandardsView';
 import { TelegramAlertModal } from './components/TelegramAlertModal';
 import { BatchUploadModal } from './components/BatchUploadModal';
+import { TrackComplaintModal } from './components/TrackComplaintModal';
 import { River, Incident, Hotspot } from './types';
 
 export const App: React.FC = () => {
@@ -17,6 +18,7 @@ export const App: React.FC = () => {
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState<boolean>(false);
   const [isBatchUploadOpen, setIsBatchUploadOpen] = useState<boolean>(false);
+  const [isTrackOpen, setIsTrackOpen] = useState<boolean>(false);
 
   const loadRiversAndIncidents = async () => {
     try {
@@ -55,6 +57,7 @@ export const App: React.FC = () => {
         activeRiver={currentRiver?.name || 'Yamuna (Delhi Stretch)'}
         onOpenAlerts={() => setIsAlertsOpen(true)}
         onOpenBatchUpload={() => setIsBatchUploadOpen(true)}
+        onOpenTrack={() => setIsTrackOpen(true)}
       />
 
       <TelegramAlertModal
@@ -72,6 +75,12 @@ export const App: React.FC = () => {
           setIsBatchUploadOpen(false);
         }}
       />
+
+      <TrackComplaintModal
+        isOpen={isTrackOpen}
+        onClose={() => setIsTrackOpen(false)}
+      />
+
 
       <main style={{ flex: 1 }}>
         {activeTab === 'map' && (
